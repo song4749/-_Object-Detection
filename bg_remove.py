@@ -1,18 +1,19 @@
 import streamlit as st
-from rembg import remove
 from PIL import Image
 from io import BytesIO
-import base64
+from ultralytics import YOLO
+import cv2
 
-st.set_page_config(layout="wide", page_title="Image Background Remover")
+st.set_page_config(layout="wide", page_title="점자블록 객체인식")
 
-st.write("## Remove background from your image")
+st.write("## 점자블록 객체인식")
 st.write(
-    ":dog: Try uploading an image to watch the background magically removed. Full quality images can be downloaded from the sidebar. This code is open source and available [here](https://github.com/tyler-simons/BackgroundRemoval) on GitHub. Special thanks to the [rembg library](https://github.com/danielgatis/rembg) :grin:"
+    "점자블록이 포함된 이미지를 업로드하면 점자블록을 탐지해줍니다"
 )
 st.sidebar.write("## Upload and download :gear:")
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
 
 # Download the fixed image
 def convert_image(img):
@@ -27,11 +28,16 @@ def fix_image(upload):
     col1.write("Original Image :camera:")
     col1.image(image)
 
-    fixed = remove(image)
+    model = YOLO("BackgroundRemoval/best.onnx")
+    result = model.predict(image, save=True, imgsz=640, conf=0.5)
+    fixed_img_bgr = result[0].plot()
+    fixed_img = cv2.cvtColor(fixed_img_bgr, cv2.COLOR_BGR2RGB)  # BGR -> RGB 변환
     col2.write("Fixed Image :wrench:")
-    col2.image(fixed)
+    col2.image(fixed_img)
+
+    fixed_image = Image.fromarray(fixed_img)  # NumPy 배열을 PIL 이미지로 변환
     st.sidebar.markdown("\n")
-    st.sidebar.download_button("Download fixed image", convert_image(fixed), "fixed.png", "image/png")
+    st.sidebar.download_button("Download fixed image", convert_image(fixed_image), "fixed.png", "image/png")
 
 
 col1, col2 = st.columns(2)
@@ -43,4 +49,4 @@ if my_upload is not None:
     else:
         fix_image(upload=my_upload)
 else:
-    fix_image("./zebra.jpg")
+    fix_image("BackgroundRemoval/20230301_144828.jpg")
